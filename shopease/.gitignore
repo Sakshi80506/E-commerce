@@ -7,27 +7,32 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Environment files
+.env
+.env.local
 *.local
 
-# Editor directories and files
+# Firebase
+.firebase/
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
+
+# OS
 .DS_Store
+
+# IDE / Visual Studio
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-node_modules/
-
-dist/
-.env
-.env.local
-public/
-.firebase/
-package-lock.json
-package.json
