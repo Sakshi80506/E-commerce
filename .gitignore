@@ -23,7 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 node_modules/
+
 dist/
 .env
 .env.local
+public/
 .firebase/
+package-lock.json
+package.json
