@@ -11,8 +11,7 @@ dist-ssr/
 .env.*.local
 
 # Firebase configuration
-src/firebase.js
-.firebase/
+
 
 # Logs
 *.log
