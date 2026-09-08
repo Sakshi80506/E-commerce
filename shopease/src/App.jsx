@@ -5,7 +5,6 @@ import {
   addDoc,
   deleteDoc,
   doc,
-  serverTimestamp,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
@@ -15,7 +14,19 @@ function App() {
   const [products, setProducts] = useState([]);
 
   // -----------------------------
-  // CART STATE
+  // DASHBOARD / SIDEBAR
+  // -----------------------------
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activePage, setActivePage] = useState("home");
+
+  // -----------------------------
+  // PRODUCT SEARCH
+  // -----------------------------
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All Products");
+
+  // -----------------------------
+  // CART
   // -----------------------------
   const [cart, setCart] = useState(() => {
     const savedCart = localStorage.getItem("shopease-cart");
@@ -25,7 +36,7 @@ function App() {
   const [message, setMessage] = useState("");
 
   // -----------------------------
-  // ADMIN PRODUCT FORM STATES
+  // ADMIN FORM
   // -----------------------------
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -34,7 +45,7 @@ function App() {
   const [image, setImage] = useState("");
 
   // -----------------------------
-  // CONTACT FORM STATES
+  // CONTACT FORM
   // -----------------------------
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -42,14 +53,14 @@ function App() {
   const [contactMessage, setContactMessage] = useState("");
 
   // -----------------------------
-  // FEEDBACK FORM STATES
+  // FEEDBACK FORM
   // -----------------------------
   const [feedbackName, setFeedbackName] = useState("");
-  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [rating, setRating] = useState(5);
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
   // -----------------------------
-  // FETCH PRODUCTS FROM FIREBASE
+  // FETCH PRODUCTS
   // -----------------------------
   const fetchProducts = async () => {
     try {
@@ -73,7 +84,7 @@ function App() {
   }, []);
 
   // -----------------------------
-  // SAVE CART TO LOCAL STORAGE
+  // SAVE CART
   // -----------------------------
   useEffect(() => {
     localStorage.setItem(
@@ -81,6 +92,19 @@ function App() {
       JSON.stringify(cart)
     );
   }, [cart]);
+
+  // -----------------------------
+  // NAVIGATION
+  // -----------------------------
+  const navigateTo = (page) => {
+    setActivePage(page);
+    setSidebarOpen(false);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   // -----------------------------
   // ADD TO CART
@@ -176,7 +200,38 @@ function App() {
   );
 
   // -----------------------------
-  // ADD PRODUCT - ADMIN
+  // CATEGORIES
+  // -----------------------------
+  const categories = [
+    "All Products",
+    ...new Set(
+      products
+        .map((product) => product.category)
+        .filter(Boolean)
+    ),
+  ];
+
+  // -----------------------------
+  // FILTER PRODUCTS
+  // -----------------------------
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      selectedCategory === "All Products" ||
+      product.category?.toLowerCase() ===
+        selectedCategory.toLowerCase();
+
+    const search = searchTerm.toLowerCase().trim();
+
+    const matchesSearch =
+      !search ||
+      product.name?.toLowerCase().includes(search) ||
+      product.category?.toLowerCase().includes(search);
+
+    return matchesCategory && matchesSearch;
+  });
+
+  // -----------------------------
+  // ADD PRODUCT
   // -----------------------------
   const addProduct = async (e) => {
     e.preventDefault();
@@ -193,7 +248,6 @@ function App() {
         category,
         description,
         image,
-        createdAt: serverTimestamp(),
       });
 
       alert("Product added successfully!");
@@ -224,19 +278,21 @@ function App() {
         )
       );
 
-      // Also remove deleted product from cart
       setCart((currentCart) =>
         currentCart.filter((item) => item.id !== id)
       );
+
+      alert("Product deleted successfully.");
     } catch (error) {
       console.error("Error deleting product:", error);
+      alert("Failed to delete product.");
     }
   };
 
   // -----------------------------
-  // CONTACT US FORM
+  // CONTACT FORM
   // -----------------------------
-  const submitContactForm = async (e) => {
+  const submitContact = async (e) => {
     e.preventDefault();
 
     if (
@@ -245,21 +301,21 @@ function App() {
       !contactSubject ||
       !contactMessage
     ) {
-      alert("Please fill in all contact form fields.");
+      alert("Please fill in all fields.");
       return;
     }
 
     try {
-      await addDoc(collection(db, "contacts"), {
+      await addDoc(collection(db, "contactMessages"), {
         name: contactName,
         email: contactEmail,
         subject: contactSubject,
         message: contactMessage,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
       });
 
       alert(
-        "Thank you for contacting ShopEase! We will get back to you soon."
+        "Thank you for contacting ShopEase. We will get back to you soon!"
       );
 
       setContactName("");
@@ -268,12 +324,12 @@ function App() {
       setContactMessage("");
     } catch (error) {
       console.error("Error submitting contact form:", error);
-      alert("Unable to send your message. Please try again.");
+      alert("Failed to send your message. Please try again.");
     }
   };
 
   // -----------------------------
-  // CUSTOMER FEEDBACK FORM
+  // FEEDBACK FORM
   // -----------------------------
   const submitFeedback = async (e) => {
     e.preventDefault();
@@ -286,599 +342,1209 @@ function App() {
     try {
       await addDoc(collection(db, "feedback"), {
         name: feedbackName,
-        rating: Number(feedbackRating),
+        rating: Number(rating),
         message: feedbackMessage,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
       });
 
-      alert(
-        "Thank you for your feedback! We appreciate your response."
-      );
+      alert("Thank you for your valuable feedback!");
 
       setFeedbackName("");
-      setFeedbackRating(5);
+      setRating(5);
       setFeedbackMessage("");
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      alert("Unable to submit feedback. Please try again.");
+      alert("Failed to submit feedback. Please try again.");
+    }
+  };
+
+  // -----------------------------
+  // PAGE TITLE
+  // -----------------------------
+  const getPageTitle = () => {
+    switch (activePage) {
+      case "home":
+        return "Dashboard";
+      case "products":
+        return "Products";
+      case "cart":
+        return "Shopping Cart";
+      case "contact":
+        return "Contact Us";
+      case "feedback":
+        return "Customer Feedback";
+      case "admin":
+        return "Admin Panel";
+      default:
+        return "Dashboard";
     }
   };
 
   return (
     <div className="app">
 
-      {/* ================================
-          NAVBAR
-      ================================= */}
-      <nav className="navbar">
-        <h2>ShopEase</h2>
+      {/* ============================= */}
+      {/* SIDEBAR */}
+      {/* ============================= */}
 
-        <div className="nav-links">
-          <a href="#home">Home</a>
-          <a href="#products">Products</a>
-
-          <a href="#cart">
-            Cart ({cartItemCount})
-          </a>
-
-          <a href="#contact">Contact Us</a>
-          <a href="#feedback">Feedback</a>
-          <a href="#admin">Admin</a>
+      <aside
+        className={`sidebar ${
+          sidebarOpen ? "sidebar-open" : ""
+        }`}
+      >
+        <div className="sidebar-header">
+          <div className="logo-icon">S</div>
+          <h2>ShopEase</h2>
         </div>
-      </nav>
 
-      {/* ================================
-          SUCCESS MESSAGE
-      ================================= */}
-      {message && (
-        <div className="cart-message">
-          ✓ {message}
+        <div className="sidebar-menu">
+
+          <button
+            className={
+              activePage === "home"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("home")}
+          >
+            <span>⌂</span>
+            <span>Dashboard</span>
+          </button>
+
+          <button
+            className={
+              activePage === "products"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("products")}
+          >
+            <span>▣</span>
+            <span>Products</span>
+          </button>
+
+          <button
+            className={
+              activePage === "cart"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("cart")}
+          >
+            <span>🛒</span>
+            <span>Cart</span>
+
+            {cartItemCount > 0 && (
+              <span className="sidebar-badge">
+                {cartItemCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            className={
+              activePage === "contact"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("contact")}
+          >
+            <span>✉</span>
+            <span>Contact Us</span>
+          </button>
+
+          <button
+            className={
+              activePage === "feedback"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("feedback")}
+          >
+            <span>★</span>
+            <span>Customer Feedback</span>
+          </button>
+
+          <div className="menu-divider"></div>
+
+          <button
+            className={
+              activePage === "admin"
+                ? "menu-item active"
+                : "menu-item"
+            }
+            onClick={() => navigateTo("admin")}
+          >
+            <span>⚙</span>
+            <span>Admin Panel</span>
+          </button>
+
         </div>
+
+        <div className="sidebar-bottom">
+          <p>ShopEase</p>
+          <small>Smart Shopping Experience</small>
+        </div>
+      </aside>
+
+      {/* OVERLAY FOR MOBILE */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        ></div>
       )}
 
-      {/* ================================
-          HERO SECTION
-      ================================= */}
-      <section id="home" className="hero">
-        <h1>Welcome to ShopEase</h1>
+      {/* ============================= */}
+      {/* MAIN CONTENT */}
+      {/* ============================= */}
 
-        <p>
-          Discover great products at great prices.
-        </p>
+      <main className="main-content">
 
-        <a href="#products">
-          <button>Shop Now</button>
-        </a>
-      </section>
+        {/* TOP BAR */}
 
-      {/* ================================
-          PRODUCTS
-      ================================= */}
-      <section id="products" className="section">
+        <header className="topbar">
 
-        <h2>Our Products</h2>
+          <button
+            className="hamburger"
+            onClick={() =>
+              setSidebarOpen(!sidebarOpen)
+            }
+            aria-label="Toggle navigation"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
 
-        <p className="section-description">
-          Browse our latest products.
-        </p>
+          <div className="page-heading">
+            <h1>{getPageTitle()}</h1>
+            <p>
+              Welcome to your ShopEase dashboard
+            </p>
+          </div>
 
-        <div className="products">
+          <div className="topbar-cart">
+            <button
+              onClick={() => navigateTo("cart")}
+            >
+              🛒
+              {cartItemCount > 0 && (
+                <span>{cartItemCount}</span>
+              )}
+            </button>
+          </div>
 
-          {products.length === 0 ? (
-            <p>No products available.</p>
-          ) : (
-            products.map((product) => (
+        </header>
 
-              <div
-                className="product-card"
-                key={product.id}
-              >
+        {/* SUCCESS MESSAGE */}
 
-                {product.image && (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="product-image"
-                  />
-                )}
+        {message && (
+          <div className="cart-message">
+            ✓ {message}
+          </div>
+        )}
 
-                <h3>{product.name}</h3>
+        {/* ============================= */}
+        {/* HOME */}
+        {/* ============================= */}
 
-                <p className="category">
-                  {product.category}
+        {activePage === "home" && (
+          <section className="page home-page">
+
+            <div className="welcome-card">
+
+              <div className="welcome-content">
+
+                <p className="welcome-label">
+                  WELCOME TO SHOPEASE
                 </p>
 
-                <p>{product.description}</p>
+                <h2>
+                  Shop smarter.
+                  <br />
+                  Live better.
+                </h2>
 
-                <h3>
-                  ₹{Number(product.price).toLocaleString("en-IN")}
-                </h3>
+                <p>
+                  Discover quality products at great
+                  prices with a simple and convenient
+                  shopping experience.
+                </p>
 
                 <button
-                  className="buy-btn"
-                  onClick={() => addToCart(product)}
+                  className="primary-btn"
+                  onClick={() =>
+                    navigateTo("products")
+                  }
                 >
-                  Add to Cart
+                  Explore Products →
                 </button>
 
               </div>
 
-            ))
-          )}
+              <div className="welcome-decoration">
+                <div className="decoration-circle">
+                  🛍
+                </div>
+              </div>
 
-        </div>
-      </section>
+            </div>
 
-      {/* ================================
-          CART
-      ================================= */}
-      <section id="cart" className="cart-section">
+            {/* ABOUT US */}
 
-        <h2>Your Cart</h2>
+            <div className="about-section">
 
-        {cart.length === 0 ? (
-          <div className="empty-cart">
-            <p>Your cart is empty.</p>
+              <div className="section-heading">
+                <p>ABOUT US</p>
+                <h2>Making shopping simple</h2>
+              </div>
 
-            <a href="#products">
-              <button>Continue Shopping</button>
-            </a>
-          </div>
-        ) : (
+              <div className="about-grid">
 
-          <div className="cart-container">
+                <div className="about-card">
+                  <div className="about-icon">
+                    ✓
+                  </div>
 
-            <div className="cart-items">
+                  <h3>Quality Products</h3>
 
-              {cart.map((item) => (
+                  <p>
+                    We aim to provide carefully
+                    selected products that deliver
+                    great value and quality.
+                  </p>
+                </div>
 
-                <div
-                  className="cart-item"
-                  key={item.id}
+                <div className="about-card">
+                  <div className="about-icon">
+                    ₹
+                  </div>
+
+                  <h3>Great Value</h3>
+
+                  <p>
+                    ShopEase focuses on offering
+                    competitive prices while keeping
+                    your shopping experience simple.
+                  </p>
+                </div>
+
+                <div className="about-card">
+                  <div className="about-icon">
+                    ♡
+                  </div>
+
+                  <h3>Customer First</h3>
+
+                  <p>
+                    Your feedback matters to us.
+                    We continuously work to improve
+                    our service for our customers.
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+        {/* ============================= */}
+        {/* PRODUCTS */}
+        {/* ============================= */}
+
+        {activePage === "products" && (
+          <section className="page">
+
+            <div className="section-heading">
+              <p>SHOP</p>
+              <h2>Our Products</h2>
+            </div>
+
+            {/* SEARCH AREA */}
+
+            <div className="product-toolbar">
+
+              <div className="search-box">
+
+                <span>⌕</span>
+
+                <input
+                  type="text"
+                  placeholder="Search by product or category..."
+                  value={searchTerm}
+                  onChange={(e) =>
+                    setSearchTerm(e.target.value)
+                  }
+                />
+
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                  >
+                    ×
+                  </button>
+                )}
+
+              </div>
+
+              <div className="category-filter">
+
+                <label>Category</label>
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) =>
+                    setSelectedCategory(e.target.value)
+                  }
                 >
+                  {categories.map((cat) => (
+                    <option
+                      value={cat}
+                      key={cat}
+                    >
+                      {cat}
+                    </option>
+                  ))}
+                </select>
 
-                  {item.image && (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                    />
-                  )}
+              </div>
 
-                  <div className="cart-item-info">
+            </div>
 
-                    <h3>{item.name}</h3>
+            <div className="product-result-info">
+              Showing{" "}
+              <strong>
+                {filteredProducts.length}
+              </strong>{" "}
+              product
+              {filteredProducts.length !== 1
+                ? "s"
+                : ""}
+            </div>
 
-                    <p>
-                      ₹{Number(item.price).toLocaleString("en-IN")}
-                    </p>
+            {/* PRODUCTS */}
 
-                    <div className="quantity-controls">
+            <div className="products">
 
-                      <button
-                        onClick={() =>
-                          decreaseQuantity(item.id)
-                        }
-                      >
-                        −
-                      </button>
+              {filteredProducts.length === 0 ? (
+                <div className="no-products">
 
-                      <span>{item.quantity}</span>
+                  <div>⌕</div>
 
-                      <button
-                        onClick={() =>
-                          increaseQuantity(item.id)
-                        }
-                      >
-                        +
-                      </button>
+                  <h3>No products found</h3>
+
+                  <p>
+                    Try changing your search or
+                    category filter.
+                  </p>
+
+                  <button
+                    className="secondary-btn"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedCategory(
+                        "All Products"
+                      );
+                    }}
+                  >
+                    View All Products
+                  </button>
+
+                </div>
+              ) : (
+                filteredProducts.map((product) => (
+
+                  <div
+                    className="product-card"
+                    key={product.id}
+                  >
+
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="product-image"
+                      />
+                    ) : (
+                      <div className="product-placeholder">
+                        🛍
+                      </div>
+                    )}
+
+                    <div className="product-card-body">
+
+                      <span className="category">
+                        {product.category}
+                      </span>
+
+                      <h3>{product.name}</h3>
+
+                      <p className="product-description">
+                        {product.description ||
+                          "Quality product from ShopEase."}
+                      </p>
+
+                      <div className="product-bottom">
+
+                        <h3>
+                          ₹
+                          {Number(
+                            product.price
+                          ).toLocaleString(
+                            "en-IN"
+                          )}
+                        </h3>
+
+                        <button
+                          className="buy-btn"
+                          onClick={() =>
+                            addToCart(product)
+                          }
+                        >
+                          + Add
+                        </button>
+
+                      </div>
 
                     </div>
 
-                    <button
-                      className="remove-btn"
-                      onClick={() =>
-                        removeFromCart(item.id)
-                      }
-                    >
-                      Remove
-                    </button>
-
                   </div>
 
-                  <strong>
-                    ₹
-                    {(
-                      Number(item.price) *
-                      item.quantity
-                    ).toLocaleString("en-IN")}
-                  </strong>
+                ))
+              )}
+
+            </div>
+
+          </section>
+        )}
+
+        {/* ============================= */}
+        {/* CART */}
+        {/* ============================= */}
+
+        {activePage === "cart" && (
+          <section className="page">
+
+            <div className="section-heading">
+              <p>SHOPPING</p>
+              <h2>Your Cart</h2>
+            </div>
+
+            {cart.length === 0 ? (
+
+              <div className="empty-cart">
+
+                <div className="empty-cart-icon">
+                  🛒
+                </div>
+
+                <h3>Your cart is empty</h3>
+
+                <p>
+                  Add some products to your cart
+                  and they will appear here.
+                </p>
+
+                <button
+                  className="primary-btn"
+                  onClick={() =>
+                    navigateTo("products")
+                  }
+                >
+                  Continue Shopping
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="cart-container">
+
+                <div className="cart-items">
+
+                  {cart.map((item) => (
+
+                    <div
+                      className="cart-item"
+                      key={item.id}
+                    >
+
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                        />
+                      ) : (
+                        <div className="cart-placeholder">
+                          🛍
+                        </div>
+                      )}
+
+                      <div className="cart-item-info">
+
+                        <span className="category">
+                          {item.category}
+                        </span>
+
+                        <h3>{item.name}</h3>
+
+                        <p>
+                          ₹
+                          {Number(
+                            item.price
+                          ).toLocaleString(
+                            "en-IN"
+                          )}
+                        </p>
+
+                        <div className="quantity-controls">
+
+                          <button
+                            onClick={() =>
+                              decreaseQuantity(
+                                item.id
+                              )
+                            }
+                          >
+                            −
+                          </button>
+
+                          <span>
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              increaseQuantity(
+                                item.id
+                              )
+                            }
+                          >
+                            +
+                          </button>
+
+                        </div>
+
+                        <button
+                          className="remove-btn"
+                          onClick={() =>
+                            removeFromCart(
+                              item.id
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+
+                      </div>
+
+                      <strong className="item-total">
+                        ₹
+                        {(
+                          Number(item.price) *
+                          item.quantity
+                        ).toLocaleString(
+                          "en-IN"
+                        )}
+                      </strong>
+
+                    </div>
+
+                  ))}
 
                 </div>
 
-              ))}
+                <div className="cart-summary">
 
-            </div>
+                  <h3>Order Summary</h3>
 
-            <div className="cart-summary">
+                  <div className="summary-row">
+                    <span>Items</span>
+                    <span>
+                      {cartItemCount}
+                    </span>
+                  </div>
 
-              <h3>Order Summary</h3>
+                  <div className="summary-row">
+                    <span>Subtotal</span>
+                    <span>
+                      ₹
+                      {cartTotal.toLocaleString(
+                        "en-IN"
+                      )}
+                    </span>
+                  </div>
 
-              <p>
-                Items: {cartItemCount}
-              </p>
+                  <div className="summary-row">
+                    <span>Delivery</span>
+                    <span>Free</span>
+                  </div>
 
-              <h2>
-                Total: ₹{cartTotal.toLocaleString("en-IN")}
-              </h2>
+                  <div className="summary-line"></div>
 
-              <button
-                className="checkout-btn"
-                onClick={() =>
-                  alert("Checkout feature coming soon!")
-                }
-              >
-                Proceed to Checkout
-              </button>
-
-            </div>
-
-          </div>
-        )}
-
-      </section>
-
-      {/* ================================
-          CONTACT US
-      ================================= */}
-      <section id="contact" className="contact-section">
-
-        <div className="section-header">
-          <h2>Contact Us</h2>
-
-          <p>
-            Have a question or need help? Send us a message
-            and our team will get back to you.
-          </p>
-        </div>
-
-        <div className="contact-container">
-
-          {/* CONTACT INFORMATION */}
-          <div className="contact-info">
-
-            <h3>Get in Touch</h3>
-
-            <p>
-              We are here to help you with your shopping
-              experience.
-            </p>
-
-            <div className="contact-detail">
-              <span>📧</span>
-
-              <div>
-                <h4>Email</h4>
-                <p>support@shopease.com</p>
-              </div>
-            </div>
-
-            <div className="contact-detail">
-              <span>📞</span>
-
-              <div>
-                <h4>Phone</h4>
-                <p>+91 98765 43210</p>
-              </div>
-            </div>
-
-            <div className="contact-detail">
-              <span>📍</span>
-
-              <div>
-                <h4>Address</h4>
-                <p>India</p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* CONTACT FORM */}
-          <form
-            className="contact-form"
-            onSubmit={submitContactForm}
-          >
-
-            <input
-              type="text"
-              placeholder="Your Name *"
-              value={contactName}
-              onChange={(e) =>
-                setContactName(e.target.value)
-              }
-            />
-
-            <input
-              type="email"
-              placeholder="Your Email *"
-              value={contactEmail}
-              onChange={(e) =>
-                setContactEmail(e.target.value)
-              }
-            />
-
-            <input
-              type="text"
-              placeholder="Subject *"
-              value={contactSubject}
-              onChange={(e) =>
-                setContactSubject(e.target.value)
-              }
-            />
-
-            <textarea
-              placeholder="Your Message *"
-              rows="6"
-              value={contactMessage}
-              onChange={(e) =>
-                setContactMessage(e.target.value)
-              }
-            />
-
-            <button
-              type="submit"
-              className="contact-btn"
-            >
-              Send Message
-            </button>
-
-          </form>
-
-        </div>
-      </section>
-
-      {/* ================================
-          CUSTOMER FEEDBACK
-      ================================= */}
-      <section id="feedback" className="feedback-section">
-
-        <div className="section-header">
-
-          <h2>Customer Feedback</h2>
-
-          <p>
-            Your feedback helps us improve ShopEase.
-          </p>
-
-        </div>
-
-        <div className="feedback-container">
-
-          <form
-            className="feedback-form"
-            onSubmit={submitFeedback}
-          >
-
-            <input
-              type="text"
-              placeholder="Your Name *"
-              value={feedbackName}
-              onChange={(e) =>
-                setFeedbackName(e.target.value)
-              }
-            />
-
-            <div className="rating-section">
-
-              <label>
-                How would you rate your experience?
-              </label>
-
-              <div className="star-rating">
-
-                {[1, 2, 3, 4, 5].map((star) => (
+                  <div className="summary-total">
+                    <span>Total</span>
+                    <strong>
+                      ₹
+                      {cartTotal.toLocaleString(
+                        "en-IN"
+                      )}
+                    </strong>
+                  </div>
 
                   <button
-                    type="button"
-                    key={star}
-                    className={
-                      star <= feedbackRating
-                        ? "star active"
-                        : "star"
-                    }
+                    className="checkout-btn"
                     onClick={() =>
-                      setFeedbackRating(star)
+                      alert(
+                        "Checkout feature coming soon!"
+                      )
                     }
                   >
-                    ★
+                    Proceed to Checkout
                   </button>
 
-                ))}
+                </div>
+
+              </div>
+            )}
+
+          </section>
+        )}
+
+        {/* ============================= */}
+        {/* CONTACT */}
+        {/* ============================= */}
+
+        {activePage === "contact" && (
+          <section className="page">
+
+            <div className="section-heading">
+              <p>GET IN TOUCH</p>
+              <h2>Contact Us</h2>
+
+              <span>
+                Have a question or need assistance?
+                We'd love to hear from you.
+              </span>
+            </div>
+
+            <div className="contact-layout">
+
+              <div className="contact-info">
+
+                <div className="contact-info-header">
+                  <h3>Let's talk</h3>
+                  <p>
+                    Our team is here to help you with
+                    your shopping experience.
+                  </p>
+                </div>
+
+                <div className="contact-detail">
+                  <div className="contact-icon">
+                    ✉
+                  </div>
+
+                  <div>
+                    <small>Email</small>
+                    <strong>
+                      support@shopease.com
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="contact-detail">
+                  <div className="contact-icon">
+                    ☎
+                  </div>
+
+                  <div>
+                    <small>Phone</small>
+                    <strong>
+                      +91 98765 43210
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="contact-detail">
+                  <div className="contact-icon">
+                    ⌖
+                  </div>
+
+                  <div>
+                    <small>Location</small>
+                    <strong>
+                      Maharashtra, India
+                    </strong>
+                  </div>
+                </div>
 
               </div>
 
-              <p className="rating-text">
-                {feedbackRating} out of 5
-              </p>
+              <form
+                className="contact-form"
+                onSubmit={submitContact}
+              >
+
+                <div className="form-row">
+
+                  <div className="form-group">
+                    <label>Your Name</label>
+
+                    <input
+                      type="text"
+                      placeholder="Enter your name"
+                      value={contactName}
+                      onChange={(e) =>
+                        setContactName(
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Email Address</label>
+
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={contactEmail}
+                      onChange={(e) =>
+                        setContactEmail(
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                </div>
+
+                <div className="form-group">
+                  <label>Subject</label>
+
+                  <input
+                    type="text"
+                    placeholder="How can we help?"
+                    value={contactSubject}
+                    onChange={(e) =>
+                      setContactSubject(
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Message</label>
+
+                  <textarea
+                    placeholder="Write your message..."
+                    rows="6"
+                    value={contactMessage}
+                    onChange={(e) =>
+                      setContactMessage(
+                        e.target.value
+                      )
+                    }
+                  ></textarea>
+                </div>
+
+                <button
+                  type="submit"
+                  className="primary-btn"
+                >
+                  Send Message →
+                </button>
+
+              </form>
 
             </div>
 
-            <textarea
-              placeholder="Tell us about your experience *"
-              rows="6"
-              value={feedbackMessage}
-              onChange={(e) =>
-                setFeedbackMessage(e.target.value)
-              }
-            />
+          </section>
+        )}
 
-            <button
-              type="submit"
-              className="feedback-btn"
-            >
-              Submit Feedback
-            </button>
+        {/* ============================= */}
+        {/* FEEDBACK */}
+        {/* ============================= */}
 
-          </form>
+        {activePage === "feedback" && (
+          <section className="page">
 
-          <div className="feedback-message">
-
-            <div className="feedback-icon">
-              ★
-            </div>
-
-            <h3>We Value Your Opinion</h3>
-
-            <p>
-              Every review helps us understand what our
-              customers love and where we can improve.
-            </p>
-
-            <div className="feedback-points">
-              <p>✓ Improve our products</p>
-              <p>✓ Improve customer service</p>
-              <p>✓ Create a better shopping experience</p>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* ================================
-          ADMIN
-      ================================= */}
-      <section id="admin" className="admin-section">
-
-        <h2>Admin Panel</h2>
-
-        <p>
-          Add new products to the store.
-        </p>
-
-        <form
-          className="product-form"
-          onSubmit={addProduct}
-        >
-
-          <input
-            type="text"
-            placeholder="Product Name *"
-            value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
-          />
-
-          <input
-            type="number"
-            placeholder="Price *"
-            value={price}
-            onChange={(e) =>
-              setPrice(e.target.value)
-            }
-          />
-
-          <input
-            type="text"
-            placeholder="Category *"
-            value={category}
-            onChange={(e) =>
-              setCategory(e.target.value)
-            }
-          />
-
-          <input
-            type="text"
-            placeholder="Image URL"
-            value={image}
-            onChange={(e) =>
-              setImage(e.target.value)
-            }
-          />
-
-          <textarea
-            placeholder="Product Description"
-            value={description}
-            onChange={(e) =>
-              setDescription(e.target.value)
-            }
-          />
-
-          <button
-            type="submit"
-            className="admin-btn"
-          >
-            Add Product
-          </button>
-
-        </form>
-
-        {/* ADMIN PRODUCT LIST */}
-        <div className="admin-products">
-
-          <h3>Manage Products</h3>
-
-          {products.map((product) => (
-
-            <div
-              className="admin-product"
-              key={product.id}
-            >
+            <div className="section-heading">
+              <p>YOUR OPINION MATTERS</p>
+              <h2>Customer Feedback</h2>
 
               <span>
-                {product.name} — ₹{product.price}
+                Tell us about your ShopEase
+                experience.
               </span>
+            </div>
 
-              <button
-                className="delete-btn"
-                onClick={() =>
-                  deleteProduct(product.id)
-                }
+            <div className="feedback-container">
+
+              <div className="feedback-intro">
+
+                <div className="feedback-large-icon">
+                  ★
+                </div>
+
+                <h3>
+                  Help us improve
+                </h3>
+
+                <p>
+                  Your feedback helps us understand
+                  what we're doing well and where we
+                  can improve.
+                </p>
+
+                <div className="feedback-points">
+                  <span>✓ Simple shopping</span>
+                  <span>✓ Better products</span>
+                  <span>✓ Better service</span>
+                </div>
+
+              </div>
+
+              <form
+                className="feedback-form"
+                onSubmit={submitFeedback}
               >
-                Delete
-              </button>
+
+                <div className="form-group">
+                  <label>Your Name</label>
+
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={feedbackName}
+                    onChange={(e) =>
+                      setFeedbackName(
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    How would you rate us?
+                  </label>
+
+                  <div className="rating-selector">
+
+                    {[1, 2, 3, 4, 5].map(
+                      (star) => (
+                        <button
+                          type="button"
+                          key={star}
+                          className={
+                            star <= rating
+                              ? "star selected"
+                              : "star"
+                          }
+                          onClick={() =>
+                            setRating(star)
+                          }
+                        >
+                          ★
+                        </button>
+                      )
+                    )}
+
+                  </div>
+
+                  <span className="rating-text">
+                    {rating === 5
+                      ? "Excellent"
+                      : rating === 4
+                      ? "Very Good"
+                      : rating === 3
+                      ? "Good"
+                      : rating === 2
+                      ? "Needs Improvement"
+                      : "Poor"}
+                  </span>
+
+                </div>
+
+                <div className="form-group">
+                  <label>Your Feedback</label>
+
+                  <textarea
+                    rows="6"
+                    placeholder="Share your experience with us..."
+                    value={feedbackMessage}
+                    onChange={(e) =>
+                      setFeedbackMessage(
+                        e.target.value
+                      )
+                    }
+                  ></textarea>
+                </div>
+
+                <button
+                  type="submit"
+                  className="primary-btn"
+                >
+                  Submit Feedback →
+                </button>
+
+              </form>
 
             </div>
 
-          ))}
+          </section>
+        )}
 
-        </div>
+        {/* ============================= */}
+        {/* ADMIN */}
+        {/* ============================= */}
 
-      </section>
+        {activePage === "admin" && (
+          <section className="page">
 
-      {/* ================================
-          FOOTER
-      ================================= */}
-      <footer>
+            <div className="section-heading">
+              <p>MANAGEMENT</p>
+              <h2>Admin Panel</h2>
 
-        <div className="footer-content">
+              <span>
+                Add and manage products in your store.
+              </span>
+            </div>
+
+            <div className="admin-layout">
+
+              {/* ADD PRODUCT */}
+
+              <div className="admin-card">
+
+                <div className="admin-card-heading">
+                  <div>
+                    <h3>Add New Product</h3>
+                    <p>
+                      Enter the product information
+                      below.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  className="product-form"
+                  onSubmit={addProduct}
+                >
+
+                  <div className="form-group">
+                    <label>
+                      Product Name *
+                    </label>
+
+                    <input
+                      type="text"
+                      placeholder="Product name"
+                      value={name}
+                      onChange={(e) =>
+                        setName(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="form-row">
+
+                    <div className="form-group">
+                      <label>
+                        Price *
+                      </label>
+
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        value={price}
+                        onChange={(e) =>
+                          setPrice(
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        Category *
+                      </label>
+
+                      <input
+                        type="text"
+                        placeholder="Category"
+                        value={category}
+                        onChange={(e) =>
+                          setCategory(
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Image URL
+                    </label>
+
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={image}
+                      onChange={(e) =>
+                        setImage(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Description
+                    </label>
+
+                    <textarea
+                      rows="4"
+                      placeholder="Product description"
+                      value={description}
+                      onChange={(e) =>
+                        setDescription(
+                          e.target.value
+                        )
+                      }
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="primary-btn"
+                  >
+                    + Add Product
+                  </button>
+
+                </form>
+
+              </div>
+
+              {/* MANAGE PRODUCTS */}
+
+              <div className="admin-card">
+
+                <div className="admin-card-heading">
+                  <div>
+                    <h3>Manage Products</h3>
+                    <p>
+                      {products.length} products
+                      currently listed.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="admin-products">
+
+                  {products.length === 0 ? (
+                    <p className="admin-empty">
+                      No products available.
+                    </p>
+                  ) : (
+                    products.map((product) => (
+
+                      <div
+                        className="admin-product"
+                        key={product.id}
+                      >
+
+                        <div className="admin-product-info">
+
+                          {product.image ? (
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                            />
+                          ) : (
+                            <div className="admin-product-placeholder">
+                              🛍
+                            </div>
+                          )}
+
+                          <div>
+                            <strong>
+                              {product.name}
+                            </strong>
+
+                            <small>
+                              {product.category}
+                              {" • "}
+                              ₹
+                              {Number(
+                                product.price
+                              ).toLocaleString(
+                                "en-IN"
+                              )}
+                            </small>
+                          </div>
+
+                        </div>
+
+                        <button
+                          className="delete-btn"
+                          onClick={() =>
+                            deleteProduct(
+                              product.id
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+
+                    ))
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+        {/* FOOTER */}
+
+        <footer>
+          <p>© 2026 ShopEase. All rights reserved.</p>
 
           <div>
-            <h3>ShopEase</h3>
+            <button
+              onClick={() =>
+                navigateTo("contact")
+              }
+            >
+              Contact
+            </button>
 
-            <p>
-              Your simple and reliable online shopping
-              destination.
-            </p>
+            <button
+              onClick={() =>
+                navigateTo("feedback")
+              }
+            >
+              Feedback
+            </button>
           </div>
+        </footer>
 
-          <div className="footer-links">
-
-            <a href="#home">Home</a>
-            <a href="#products">Products</a>
-            <a href="#cart">Cart</a>
-            <a href="#contact">Contact Us</a>
-            <a href="#feedback">Feedback</a>
-
-          </div>
-
-        </div>
-
-        <div className="footer-bottom">
-          <p>© 2026 ShopEase. All rights reserved.</p>
-        </div>
-
-      </footer>
+      </main>
 
     </div>
   );
