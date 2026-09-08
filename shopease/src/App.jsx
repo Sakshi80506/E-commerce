@@ -5,6 +5,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  serverTimestamp,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
@@ -13,7 +14,9 @@ import "./App.css";
 function App() {
   const [products, setProducts] = useState([]);
 
-  // Load cart from localStorage
+  // -----------------------------
+  // CART STATE
+  // -----------------------------
   const [cart, setCart] = useState(() => {
     const savedCart = localStorage.getItem("shopease-cart");
     return savedCart ? JSON.parse(savedCart) : [];
@@ -21,12 +24,29 @@ function App() {
 
   const [message, setMessage] = useState("");
 
-  // Admin form states
+  // -----------------------------
+  // ADMIN PRODUCT FORM STATES
+  // -----------------------------
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
+
+  // -----------------------------
+  // CONTACT FORM STATES
+  // -----------------------------
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+
+  // -----------------------------
+  // FEEDBACK FORM STATES
+  // -----------------------------
+  const [feedbackName, setFeedbackName] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   // -----------------------------
   // FETCH PRODUCTS FROM FIREBASE
@@ -173,6 +193,7 @@ function App() {
         category,
         description,
         image,
+        createdAt: serverTimestamp(),
       });
 
       alert("Product added successfully!");
@@ -203,7 +224,7 @@ function App() {
         )
       );
 
-      // Also remove from cart
+      // Also remove deleted product from cart
       setCart((currentCart) =>
         currentCart.filter((item) => item.id !== id)
       );
@@ -212,10 +233,83 @@ function App() {
     }
   };
 
+  // -----------------------------
+  // CONTACT US FORM
+  // -----------------------------
+  const submitContactForm = async (e) => {
+    e.preventDefault();
+
+    if (
+      !contactName ||
+      !contactEmail ||
+      !contactSubject ||
+      !contactMessage
+    ) {
+      alert("Please fill in all contact form fields.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "contacts"), {
+        name: contactName,
+        email: contactEmail,
+        subject: contactSubject,
+        message: contactMessage,
+        createdAt: serverTimestamp(),
+      });
+
+      alert(
+        "Thank you for contacting ShopEase! We will get back to you soon."
+      );
+
+      setContactName("");
+      setContactEmail("");
+      setContactSubject("");
+      setContactMessage("");
+    } catch (error) {
+      console.error("Error submitting contact form:", error);
+      alert("Unable to send your message. Please try again.");
+    }
+  };
+
+  // -----------------------------
+  // CUSTOMER FEEDBACK FORM
+  // -----------------------------
+  const submitFeedback = async (e) => {
+    e.preventDefault();
+
+    if (!feedbackName || !feedbackMessage) {
+      alert("Please enter your name and feedback.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "feedback"), {
+        name: feedbackName,
+        rating: Number(feedbackRating),
+        message: feedbackMessage,
+        createdAt: serverTimestamp(),
+      });
+
+      alert(
+        "Thank you for your feedback! We appreciate your response."
+      );
+
+      setFeedbackName("");
+      setFeedbackRating(5);
+      setFeedbackMessage("");
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      alert("Unable to submit feedback. Please try again.");
+    }
+  };
+
   return (
     <div className="app">
 
-      {/* NAVBAR */}
+      {/* ================================
+          NAVBAR
+      ================================= */}
       <nav className="navbar">
         <h2>ShopEase</h2>
 
@@ -227,18 +321,24 @@ function App() {
             Cart ({cartItemCount})
           </a>
 
+          <a href="#contact">Contact Us</a>
+          <a href="#feedback">Feedback</a>
           <a href="#admin">Admin</a>
         </div>
       </nav>
 
-      {/* SUCCESS MESSAGE */}
+      {/* ================================
+          SUCCESS MESSAGE
+      ================================= */}
       {message && (
         <div className="cart-message">
           ✓ {message}
         </div>
       )}
 
-      {/* HERO */}
+      {/* ================================
+          HERO SECTION
+      ================================= */}
       <section id="home" className="hero">
         <h1>Welcome to ShopEase</h1>
 
@@ -251,7 +351,9 @@ function App() {
         </a>
       </section>
 
-      {/* PRODUCTS */}
+      {/* ================================
+          PRODUCTS
+      ================================= */}
       <section id="products" className="section">
 
         <h2>Our Products</h2>
@@ -307,7 +409,9 @@ function App() {
         </div>
       </section>
 
-      {/* CART */}
+      {/* ================================
+          CART
+      ================================= */}
       <section id="cart" className="cart-section">
 
         <h2>Your Cart</h2>
@@ -315,6 +419,7 @@ function App() {
         {cart.length === 0 ? (
           <div className="empty-cart">
             <p>Your cart is empty.</p>
+
             <a href="#products">
               <button>Continue Shopping</button>
             </a>
@@ -422,7 +527,226 @@ function App() {
 
       </section>
 
-      {/* ADMIN */}
+      {/* ================================
+          CONTACT US
+      ================================= */}
+      <section id="contact" className="contact-section">
+
+        <div className="section-header">
+          <h2>Contact Us</h2>
+
+          <p>
+            Have a question or need help? Send us a message
+            and our team will get back to you.
+          </p>
+        </div>
+
+        <div className="contact-container">
+
+          {/* CONTACT INFORMATION */}
+          <div className="contact-info">
+
+            <h3>Get in Touch</h3>
+
+            <p>
+              We are here to help you with your shopping
+              experience.
+            </p>
+
+            <div className="contact-detail">
+              <span>📧</span>
+
+              <div>
+                <h4>Email</h4>
+                <p>support@shopease.com</p>
+              </div>
+            </div>
+
+            <div className="contact-detail">
+              <span>📞</span>
+
+              <div>
+                <h4>Phone</h4>
+                <p>+91 98765 43210</p>
+              </div>
+            </div>
+
+            <div className="contact-detail">
+              <span>📍</span>
+
+              <div>
+                <h4>Address</h4>
+                <p>India</p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* CONTACT FORM */}
+          <form
+            className="contact-form"
+            onSubmit={submitContactForm}
+          >
+
+            <input
+              type="text"
+              placeholder="Your Name *"
+              value={contactName}
+              onChange={(e) =>
+                setContactName(e.target.value)
+              }
+            />
+
+            <input
+              type="email"
+              placeholder="Your Email *"
+              value={contactEmail}
+              onChange={(e) =>
+                setContactEmail(e.target.value)
+              }
+            />
+
+            <input
+              type="text"
+              placeholder="Subject *"
+              value={contactSubject}
+              onChange={(e) =>
+                setContactSubject(e.target.value)
+              }
+            />
+
+            <textarea
+              placeholder="Your Message *"
+              rows="6"
+              value={contactMessage}
+              onChange={(e) =>
+                setContactMessage(e.target.value)
+              }
+            />
+
+            <button
+              type="submit"
+              className="contact-btn"
+            >
+              Send Message
+            </button>
+
+          </form>
+
+        </div>
+      </section>
+
+      {/* ================================
+          CUSTOMER FEEDBACK
+      ================================= */}
+      <section id="feedback" className="feedback-section">
+
+        <div className="section-header">
+
+          <h2>Customer Feedback</h2>
+
+          <p>
+            Your feedback helps us improve ShopEase.
+          </p>
+
+        </div>
+
+        <div className="feedback-container">
+
+          <form
+            className="feedback-form"
+            onSubmit={submitFeedback}
+          >
+
+            <input
+              type="text"
+              placeholder="Your Name *"
+              value={feedbackName}
+              onChange={(e) =>
+                setFeedbackName(e.target.value)
+              }
+            />
+
+            <div className="rating-section">
+
+              <label>
+                How would you rate your experience?
+              </label>
+
+              <div className="star-rating">
+
+                {[1, 2, 3, 4, 5].map((star) => (
+
+                  <button
+                    type="button"
+                    key={star}
+                    className={
+                      star <= feedbackRating
+                        ? "star active"
+                        : "star"
+                    }
+                    onClick={() =>
+                      setFeedbackRating(star)
+                    }
+                  >
+                    ★
+                  </button>
+
+                ))}
+
+              </div>
+
+              <p className="rating-text">
+                {feedbackRating} out of 5
+              </p>
+
+            </div>
+
+            <textarea
+              placeholder="Tell us about your experience *"
+              rows="6"
+              value={feedbackMessage}
+              onChange={(e) =>
+                setFeedbackMessage(e.target.value)
+              }
+            />
+
+            <button
+              type="submit"
+              className="feedback-btn"
+            >
+              Submit Feedback
+            </button>
+
+          </form>
+
+          <div className="feedback-message">
+
+            <div className="feedback-icon">
+              ★
+            </div>
+
+            <h3>We Value Your Opinion</h3>
+
+            <p>
+              Every review helps us understand what our
+              customers love and where we can improve.
+            </p>
+
+            <div className="feedback-points">
+              <p>✓ Improve our products</p>
+              <p>✓ Improve customer service</p>
+              <p>✓ Create a better shopping experience</p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================
+          ADMIN
+      ================================= */}
       <section id="admin" className="admin-section">
 
         <h2>Admin Panel</h2>
@@ -522,9 +846,38 @@ function App() {
 
       </section>
 
-      {/* FOOTER */}
+      {/* ================================
+          FOOTER
+      ================================= */}
       <footer>
-        <p>© 2026 ShopEase</p>
+
+        <div className="footer-content">
+
+          <div>
+            <h3>ShopEase</h3>
+
+            <p>
+              Your simple and reliable online shopping
+              destination.
+            </p>
+          </div>
+
+          <div className="footer-links">
+
+            <a href="#home">Home</a>
+            <a href="#products">Products</a>
+            <a href="#cart">Cart</a>
+            <a href="#contact">Contact Us</a>
+            <a href="#feedback">Feedback</a>
+
+          </div>
+
+        </div>
+
+        <div className="footer-bottom">
+          <p>© 2026 ShopEase. All rights reserved.</p>
+        </div>
+
       </footer>
 
     </div>
